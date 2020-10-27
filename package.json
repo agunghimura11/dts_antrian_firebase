@@ -18,7 +18,8 @@
     "elasticsearch": "^16.7.1",
     "express": "^4.17.1",
     "firebase-admin": "^9.3.0",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "nodemon": "^2.0.6"
   },
   "devDependencies": {
     "@types/elasticsearch": "^5.0.36",
