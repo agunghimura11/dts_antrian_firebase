@@ -1,5 +1,6 @@
 import admin, { firestore } from 'firebase-admin';
 import { serviceAccountCredentials } from '../serviceAccountKey';
+import quque from './quque';
 const serviceAccount = serviceAccountCredentials as admin.ServiceAccount;
 
 import Queue from './quque'
@@ -20,11 +21,11 @@ export type Account = {
 };
 
 export type Antrian = {
-  no_antrian: number
-  status: boolean
   account_number: number
-  time_start: Date
-  time_finish: Date
+  no_antrian: number // no antrian, generate dari sistem
+  status: boolean // true jika sudah dilayani teller, default: false
+  time_start: Date // waktu mengambil antrian
+  time_finish: Date // waktu selesai pelayanan, default: null
 }
 
 export type No_antrian = {
@@ -56,10 +57,106 @@ export class FirebaseClient {
     this.accountRef = accountRef
     this.antrianRef = antrianRef
     this.NoAntrianRef = NoAntrianRef
-   
-    
   }
 
+  //antrian
+  async generateAntrian() {
+    const acc = JSON.parse(JSON.stringify(Queue.enqueue()))
+    try{
+      await NoAntrianRef.add(acc)
+    }catch(err){
+      throw err
+    }
+    return
+  }
+  
+  async getAntrian(){
+    let snapshot
+    try{
+      snapshot = await this.antrianRef.get()
+    }catch(err){
+      throw err
+    }
+    
+    return snapshot.docs.map(doc => doc.data())
+  }
+
+  async getAntrianById(id: string) {
+    let snapshot
+    try{
+      snapshot = await antrianRef.doc(id).get()
+    }catch(err){
+      throw err
+    }
+
+    return snapshot.data()
+  }
+
+  // buat antrian baru, dengan memasukan id user serta memanggil class queue
+  async addAntrian(){
+    let data: Antrian 
+    // cek apakah antrian kosong, jika kosong generate baru
+    if(Queue.isEmpty()){
+      Queue.generate()
+    }
+    const q = Queue.enqueue()
+    Queue.dequeue()
+    console.log(q)
+    const time = new Date().getTime()
+    try{
+      await antrianRef.add({
+        no_antrian: q[0], //antrian pertama
+        status: false, // status apakah sudah dilayani, jika true sudah
+        time_start: time,
+        time_finish: null
+      })
+    }catch(err){
+      throw err
+    }
+    const no_antrian = Queue.data_antrian()
+    return no_antrian[no_antrian.length - 1]
+  }
+  // Jika selesai dilayani teller by id antrian
+  async doneAntrianById(id: string){
+    const time = new Date().getTime()
+    try{
+      await antrianRef.doc(id).update({
+        status: true,
+        time_finish:time
+      })
+    }catch(Err){
+      throw Err
+    }
+
+    return 
+  }
+
+  // async firstAntrian(){
+  //   let result
+  //   const time = new Date().getTime()
+  //   const quque_data = Queue.data_antrian() 
+  //   const no_antrian = (quque_data === undefined) ? 1 : quque_data[0]
+  //   console.log(no_antrian)
+  //   try {
+  //     result = await antrianRef.where('no_antrian', '==', no_antrian).get()
+  //   }catch(err){
+  //     throw err
+  //   }
+
+  //   return result.docs.map(doc => doc.data())
+  // }
+
+  async setAntrianRange(start: number, finish: number){
+    let setting
+    try{
+      setting =  await quque.set_range(start, finish)
+    }catch(err){
+      throw err
+    }
+    return setting
+  }
+
+  // Account
   async addData(account: Account) {
     //const acc = account as firestore.DocumentData
     try{
@@ -140,49 +237,7 @@ export class FirebaseClient {
     return snapshot.docs.map(doc => doc.data())
   }
 
-  //antrian
-
-  async generateAntrian() {
-    const acc = JSON.parse(JSON.stringify(Queue.enqueue()))
-    try{
-      await NoAntrianRef.add(acc)
-    }catch(err){
-      throw err
-    }
-
-    return
-  }
   
-  async getAntrian(){
-    let snapshot
-    try{
-      snapshot = await this.NoAntrianRef.get()
-    }catch(err){
-      throw err
-    }
-    console.log(snapshot)
-    return snapshot.docs.map(doc => doc.data())
-  }
-
-  async addAntrian(id: string){
-    let data: Antrian 
-
-    if(Queue.isEmpty()){
-      Queue.generate(1,10)
-    }
-    const q = Queue.enqueue()
-    Queue.dequeue()
-
-    const time = new Date().getTime()
-    
-    await antrianRef.add({
-      no_antrian: q[0],
-      status: true,
-      account_number: id,
-      time_start: time,
-      time_finish: null
-    })
-  }
 
 }
 
